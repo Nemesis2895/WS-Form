@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WS Form - Amministrazione</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#0f172a;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{background:#1e3a8a;color:#fff;padding:16px 14px;box-shadow:0 2px 10px #0002}
+.header{max-width:1050px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:10px}
+h1{margin:0;font-size:21px}.sub{font-size:12px;opacity:.85;margin-top:3px}
+main{max-width:1050px;margin:18px auto 60px;padding:0 14px}
+.card{background:#fff;border-radius:14px;padding:17px;border-left:5px solid #1e3a8a;box-shadow:0 2px 9px #0000000d;margin-bottom:16px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.actions{display:flex;gap:7px;flex-wrap:wrap}
+button{border:0;border-radius:9px;padding:10px 13px;font-weight:800;cursor:pointer}
+.btn{background:#1e3a8a;color:#fff}.green{background:#15803d;color:#fff}.gray{background:#e2e8f0;color:#0f172a}.red{background:#dc2626;color:#fff}
+table{width:100%;border-collapse:collapse;margin-top:13px;table-layout:fixed}th,td{padding:10px 7px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:14px;vertical-align:middle}th{font-size:11px;text-transform:uppercase;color:#64748b}th:nth-child(1),td:nth-child(1){width:13%}th:nth-child(2),td:nth-child(2){width:15%}th:nth-child(3),td:nth-child(3){width:23%}th:nth-child(4),td:nth-child(4){width:14%}th:nth-child(5),td:nth-child(5){width:35%}td:nth-child(1),td:nth-child(2){font-weight:600}.actions{justify-content:center;align-items:center}
+.badge{display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800;margin:2px}.badge.tech{background:#dcfce7;color:#166534}.badge.admin{background:#dbeafe;color:#1e40af}.badge.off{background:#fee2e2;color:#991b1b}.badge.on{background:#dcfce7;color:#166534}
+.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:14px;z-index:20}.modal.hidden{display:none}.modal-box{background:#fff;border-radius:15px;padding:20px;width:min(620px,100%);max-height:92vh;overflow:auto}
+h2{margin:0 0 16px;color:#1e3a8a;font-size:20px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{font-size:11px;font-weight:800;color:#475569;text-transform:uppercase}input,select{display:block;width:100%;margin-top:5px;padding:10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font:inherit}
+.checks{display:flex;gap:18px;margin-top:8px;flex-wrap:wrap}.checks label{font-size:13px;color:#0f172a;text-transform:none}.checks input{display:inline-block;width:auto;margin:0 6px 0 0;vertical-align:middle}
+.hint{font-size:11px;color:#64748b;margin-top:4px}.message{margin-top:10px;padding:9px;border-radius:8px;font-size:12px;font-weight:700}.error{background:#fee2e2;color:#991b1b}.ok{background:#dcfce7;color:#166534}
+@media(max-width:700px){.grid{grid-template-columns:1fr}table{display:block;overflow-x:auto;white-space:nowrap}}
+</style>
+</head>
+<body>
+<header><div class="header">
+<div><h1>AMMINISTRAZIONE WS FORM</h1><div class="sub" id="adminName">Controllo accesso...</div></div>
+<div class="actions"><button type="button" id="backBtn" class="gray" style="display:none;">← Torna al modulo</button><button type="button" id="logoutBtn" class="red">ESCI</button></div>
+</div></header>
+
+<main>
+<section class="card">
+<div class="toolbar">
+<div><strong>Utenti</strong><div class="hint">Gestione utenti, permessi e CloudConvert.</div></div>
+<div class="actions"><button type="button" id="newBtn" class="green">+ Nuovo Utente</button><button type="button" id="refreshBtn" class="gray">↻ Aggiorna</button></div>
+</div>
+<div id="message"></div>
+<table><thead><tr><th>Username</th><th>Nome</th><th>Permessi</th><th>Stato</th><th>Azioni</th></tr></thead><tbody id="usersBody"><tr><td colspan="5">Caricamento...</td></tr></tbody></table>
+</section>
+</main>
+
+<div id="modal" class="modal hidden">
+<div class="modal-box">
+<h2 id="modalTitle">Nuovo Utente</h2>
+<div class="grid">
+<div><label>Username<input id="username" autocomplete="off"></label><div class="hint">2-40 caratteri: A-Z, 0-9, . _ -</div></div>
+<div><label>Nome<input id="nome" autocomplete="off"></label></div>
+<div><label>Permessi</label><div class="checks">
+<label><input id="permTecnico" type="checkbox">TECNICO</label>
+<label><input id="permAdmin" type="checkbox">ADMIN</label>
+</div><div class="hint">Puoi selezionare uno o entrambi.</div></div>
+<div><label>Stato<select id="attivo"><option value="true">Attivo</option><option value="false">Disattivo</option></select></label></div>
+<div id="passwordWrap"><label>Password<input id="password" type="password" autocomplete="new-password"></label><div class="hint">Minimo 8 caratteri.</div></div>
+<div><label>Chiave CloudConvert<input id="cckey" type="password" autocomplete="off"></label><div class="hint">In modifica, lascia vuoto per non cambiarla.</div></div>
+</div>
+<div class="actions" style="margin-top:15px"><button type="button" id="saveBtn" class="btn">SALVA</button><button type="button" id="cancelBtn" class="gray">ANNULLA</button></div>
+<div id="modalMessage"></div>
+</div></div>
+
+<script>
+const SUPABASE_URL="https://uojxohvixlcxftpavieu.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_u-ka1YHQS-pTFTIfDsaXcw_3pjStYKh";
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const FUNCTION_URL=SUPABASE_URL+"/functions/v1/admin-users";
+let accessToken="",currentAdminId="",users=[],editId=null;
+
+const $=id=>document.getElementById(id);
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+function showMessage(text,ok=false){$("message").innerHTML=text?'<div class="message '+(ok?"ok":"error")+'">'+esc(text)+'</div>':"";}
+function showModalMessage(text,ok=false){$("modalMessage").innerHTML=text?'<div class="message '+(ok?"ok":"error")+'">'+esc(text)+'</div>':"";}
+
+async function api(action,data={}){
+ const r=await fetch(FUNCTION_URL,{method:"POST",headers:{"Authorization":"Bearer "+accessToken,"apikey":SUPABASE_PUBLISHABLE_KEY,"Content-Type":"application/json"},body:JSON.stringify(Object.assign({action:action},data))});
+ let j={};try{j=await r.json();}catch(_){}
+ if(!r.ok)throw new Error(j.error||("Errore HTTP "+r.status));
+ return j;
+}
+
+async function init(){
+ try{
+  const {data,error}=await supabaseClient.auth.getSession();
+  if(error)throw error;
+  if(!data.session){location.replace("index.html");return;}
+  accessToken=data.session.access_token;
+  const {data:profile,error:pError}=await supabaseClient.from("profiles").select("id,username,nome_tecnico,is_admin,is_tecnico,attivo").eq("id",data.session.user.id).single();
+  if(pError)throw pError;
+  if(!profile.attivo){
+    showMessage("ACCESSO NEGATO: il profilo è disattivato.");
+    return;
+  }
+
+  // La pagina AMMINISTRAZIONE è accessibile esclusivamente agli ADMIN.
+  // Un TECNICO puro che prova ad aprire direttamente admin.html viene bloccato.
+  if(profile.is_admin!==true){
+    document.querySelector("main").innerHTML=
+      '<section class="card" style="text-align:center;padding:35px 20px;border-left-color:#dc2626;">' +
+      '<h2 style="color:#b91c1c;margin-bottom:10px;">ACCESSO NEGATO</h2>' +
+      '<p style="font-weight:700;color:#475569;">Il tuo account non dispone del permesso ADMIN per accedere alla gestione amministrativa.</p>' +
+      '<button type="button" id="deniedLogoutBtn" class="red" style="margin-top:18px;">TORNA AL LOGIN</button>' +
+      '</section>';
+    document.getElementById("deniedLogoutBtn").addEventListener("click",async function(){
+      await supabaseClient.auth.signOut();
+      window.location.replace("index.html");
+    });
+    return;
+  }
+
+  // ADMIN + TECNICO -> mostra "Torna al modulo".
+  // ADMIN soltanto -> il pulsante resta nascosto.
+  if(profile.is_tecnico===true){$("backBtn").style.display="inline-block";}
+  currentAdminId=profile.id;
+  $("adminName").textContent="Amministratore: "+(profile.nome_tecnico||profile.username);
+  await loadUsers();
+ }catch(e){showMessage(e.message||"Errore di accesso");}
+}
+
+async function loadUsers(){
+ try{const j=await api("list");users=j.users||[];render();}catch(e){showMessage(e.message);}
+}
+
+function render(){
+ const b=$("usersBody");
+ if(!users.length){b.innerHTML='<tr><td colspan="5">Nessun utente presente.</td></tr>';return;}
+ b.innerHTML=users.map(function(u){
+  const perms=(u.is_tecnico?'<span class="badge tech">TECNICO</span>':"")+(u.is_admin?'<span class="badge admin">ADMIN</span>':"");
+  const state=u.attivo?'<span class="badge on">ATTIVO</span>':'<span class="badge off">DISATTIVO</span>';
+  const del=(String(u.username).toUpperCase()==="GIORGIO"||u.id===currentAdminId)?"":'<button type="button" class="red deleteBtn" data-id="'+esc(u.id)+'">Elimina</button>';
+  return '<tr><td><strong>'+esc(u.username)+'</strong></td><td>'+esc(u.nome_tecnico)+'</td><td>'+perms+'</td><td>'+state+'</td><td><div class="actions"><button type="button" class="gray editBtn" data-id="'+esc(u.id)+'">Modifica</button><button type="button" class="gray resetBtn" data-id="'+esc(u.id)+'">Password</button>'+del+'</div></td></tr>';
+ }).join("");
+ document.querySelectorAll(".editBtn").forEach(b=>b.addEventListener("click",function(){openEdit(this.dataset.id);}));
+ document.querySelectorAll(".resetBtn").forEach(b=>b.addEventListener("click",function(){resetPassword(this.dataset.id);}));
+ document.querySelectorAll(".deleteBtn").forEach(b=>b.addEventListener("click",function(){deleteUser(this.dataset.id);}));
+}
+
+function resetFields(){
+ ["username","nome","password","cckey"].forEach(id=>$(id).value="");
+ ["username","nome","permTecnico","permAdmin","attivo"].forEach(id=>$(id).disabled=false);
+}
+
+function openCreate(){
+ editId=null;$("modalTitle").textContent="Nuovo Utente";resetFields();
+ $("permTecnico").checked=true;$("permAdmin").checked=false;$("attivo").value="true";
+ $("passwordWrap").style.display="block";showModalMessage("");$("modal").classList.remove("hidden");
+}
+
+function openEdit(id){
+ const u=users.find(x=>x.id===id);if(!u)return;
+ editId=id;$("modalTitle").textContent="Modifica "+u.username;
+ $("username").value=u.username;$("nome").value=u.nome_tecnico;
+ $("permTecnico").checked=u.is_tecnico===true;$("permAdmin").checked=u.is_admin===true;$("attivo").value=String(u.attivo);
+ $("password").value="";$("cckey").value="";$("passwordWrap").style.display="none";
+ const giorgio=String(u.username).toUpperCase()==="GIORGIO";
+ ["username","nome","permTecnico","permAdmin","attivo"].forEach(id=>$(id).disabled=giorgio);
+ showModalMessage(giorgio?"GIORGIO è l'amministratore principale e non può essere modificato.":"");
+ $("modal").classList.remove("hidden");
+}
+
+function closeModal(){$("modal").classList.add("hidden");showModalMessage("");}
+
+async function saveUser(){
+ showModalMessage("");
+ const payload={username:$("username").value.trim(),nome_tecnico:$("nome").value.trim(),is_tecnico:$("permTecnico").checked,is_admin:$("permAdmin").checked,attivo:$("attivo").value==="true",cloudconvert_api_key:$("cckey").value.trim()};
+ if(payload.attivo&&!payload.is_tecnico&&!payload.is_admin){showModalMessage("Seleziona TECNICO e/o ADMIN per un account attivo.");return;}
+ try{
+  if(editId){await api("update",Object.assign({},payload,{id:editId}));showMessage("Utente aggiornato.",true);}
+  else{payload.password=$("password").value;await api("create",payload);showMessage("Utente creato.",true);}
+  closeModal();await loadUsers();
+ }catch(e){showModalMessage(e.message||"Errore");}
+}
+
+async function resetPassword(id){
+ const u=users.find(x=>x.id===id);if(!u)return;
+ const p=prompt("Nuova password per "+u.username+" (minimo 8 caratteri):");
+ if(p===null)return;if(p.length<8){alert("La password deve avere almeno 8 caratteri.");return;}
+ try{await api("reset_password",{id:id,password:p});showMessage("Password reimpostata.",true);}catch(e){showMessage(e.message);}
+}
+
+async function deleteUser(id){
+ const u=users.find(x=>x.id===id);if(!u)return;
+ if(String(u.username).toUpperCase()==="GIORGIO"){showMessage("L'account GIORGIO è protetto.");return;}
+ if(!confirm("Eliminare definitivamente "+u.username+"?"))return;
+ try{await api("delete",{id:id});showMessage("Utente eliminato.",true);await loadUsers();}catch(e){showMessage(e.message);}
+}
+
+$("newBtn").addEventListener("click",openCreate);
+$("refreshBtn").addEventListener("click",loadUsers);
+$("saveBtn").addEventListener("click",saveUser);
+$("cancelBtn").addEventListener("click",closeModal);
+$("backBtn").addEventListener("click",function(){location.href="ws-form.html";});
+$("logoutBtn").addEventListener("click",async function(){
+ try{await supabaseClient.auth.signOut();}catch(e){console.error(e);}
+ sessionStorage.removeItem("wsform_profile");
+ location.replace("index.html");
+});
+$("modal").addEventListener("click",function(e){if(e.target===this)closeModal();});
+
+init();
+</script>
+</body>
+</html>
