@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WS Form - Le tue richieste</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5f9;color:#0f172a;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:12px}
+.container{max-width:1100px;margin:auto}.header-card,.card{background:#fff;border-radius:14px;box-shadow:0 2px 9px #0000000d;border-left:5px solid #1e3a8a}
+.header-card{padding:18px;margin-bottom:16px;text-align:center;position:relative}.header-card h1{margin:0;color:#1e3a8a;font-size:21px;font-weight:800}.name{margin-top:6px;color:#64748b;font-size:13px;font-weight:700}.back-btn{position:absolute;right:14px;top:14px;border:1px solid #bfdbfe;border-radius:10px;background:#1e3a8a;color:#fff;padding:9px 13px;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 3px 8px #1e3a8a2b;transition:.15s ease}
+.back-btn:hover{background:#172f70;transform:translateY(-1px)}
+.card{padding:17px;overflow:hidden}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.toolbar strong{font-size:15px;color:#1e3a8a}.refresh{border:1px solid #bfdbfe;border-radius:10px;background:#1e3a8a;color:#fff;padding:9px 13px;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 3px 8px #1e3a8a2b;transition:.15s ease}
+.refresh:hover{background:#172f70;transform:translateY(-1px)}
+.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:720px}th,td{padding:11px 8px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:13px;vertical-align:middle}th{font-size:10px;text-transform:uppercase;color:#64748b;background:#f8fafc}td{font-weight:600}.empty{text-align:center;color:#64748b;padding:25px;font-size:12px;font-weight:600}.success{margin-bottom:12px;padding:10px;border-radius:8px;background:#dcfce7;color:#166534;font-size:12px;font-weight:700}.error{margin-bottom:12px;padding:10px;border-radius:8px;background:#fee2e2;color:#991b1b;font-size:12px;font-weight:700}.status{display:inline-block;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:800}.pending{background:#fef3c7;color:#92400e}.accepted{background:#dcfce7;color:#166534}.rejected{background:#fee2e2;color:#991b1b}.cancelled{background:#e2e8f0;color:#475569}.modification-pending{display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:5px 8px;border-radius:999px;background:#dbeafe;color:#1e3a8a;font-size:10px;font-weight:850;white-space:nowrap}.cancel-btn{border:0;border-radius:8px;background:#fee2e2;color:#991b1b;padding:7px 9px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap}.cancel-btn:hover{background:#fecaca}
+.modify-btn{border:0;border-radius:8px;background:#dbeafe;color:#1e3a8a;padding:7px 9px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;margin-right:5px}.view-mod-btn{border:0;border-radius:8px;background:#e0e7ff;color:#3730a3;padding:7px 9px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap}.view-mod-btn:hover{background:#c7d2fe}
+.modify-btn:hover{background:#bfdbfe}
+.action-cell{display:flex;gap:5px;justify-content:center;align-items:center;flex-wrap:wrap}
+.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000}
+.modal.hidden{display:none}
+.modal-card{width:min(560px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:16px;box-shadow:0 18px 50px #0003;border-left:5px solid #1e3a8a;padding:20px}
+.modal-card h2{margin:0 0 6px;color:#1e3a8a;font-size:18px}
+.modal-subtitle{margin:0 0 16px;color:#64748b;font-size:12px;font-weight:600}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field.full{grid-column:1/-1}
+.field label{font-size:10px;text-transform:uppercase;color:#64748b;font-weight:800}
+.field input,.field select,.field textarea{width:100%;border:1px solid #cbd5e1;border-radius:9px;padding:10px;font:inherit;font-size:13px;background:#fff;color:#0f172a}
+.field textarea{min-height:80px;resize:vertical}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.modal-btn{border:0;border-radius:9px;padding:10px 14px;font-size:11px;font-weight:800;cursor:pointer}
+.modal-cancel{background:#e2e8f0;color:#334155}
+.modal-save{background:#1e3a8a;color:#fff}
+.modal-message{margin-top:10px;padding:9px;border-radius:8px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;display:none}
+.mod-view-status{background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:11px 14px;margin-bottom:14px}
+.mod-view-status .detail-label{color:#92400e}
+.mod-view-status .detail-value{color:#92400e;font-size:15px}
+.mod-view-section{margin-top:14px}
+.mod-view-section-title{font-size:12px;font-weight:850;color:#64748b;text-transform:uppercase;margin-bottom:7px}
+.mod-view-current{border-left:4px solid #94a3b8}
+.mod-view-request{border-left:4px solid #1e3a8a;background:#f8fafc}
+.mod-view-row{display:grid;grid-template-columns:110px 1fr;gap:8px;padding:7px 0;border-bottom:1px solid #e2e8f0;font-size:13px;line-height:1.4}
+.mod-view-row:last-child{border-bottom:0}
+.mod-view-row strong{color:#475569}
+.mod-view-row span{font-weight:700;color:#0f172a}
+.permission-validation{display:none;grid-column:1/-1;margin-top:-4px;padding:12px 14px;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:9px;background:#fef2f2;color:#991b1b}
+.permission-validation.show{display:block}
+.permission-validation-title{font-size:13px;font-weight:850;margin-bottom:4px}
+.permission-validation-text{font-size:12px;font-weight:600;line-height:1.5}
+
+@media(max-width:560px){.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal-card{padding:16px}.modal-actions{flex-direction:column}.modal-btn{width:100%}}.note{text-align:center;white-space:pre-wrap;max-width:260px;margin:auto;font-size:12px;color:#475569}.small{font-size:11px;color:#64748b;font-weight:600}
+@media(max-width:700px){body{padding:8px}.header-card{padding:16px 12px 58px}.back-btn{top:auto;bottom:12px;right:12px}.header-card h1{font-size:18px}.card{padding:12px}.toolbar{align-items:flex-start}}
+
+.history-btn{border:0;border-radius:8px;background:#475569;color:#fff;padding:7px 9px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap}.history-btn:hover{background:#334155}.history-actions{display:flex;flex-direction:column;gap:5px;justify-content:center;align-items:stretch}.history-current{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:12px}.history-current-title,.history-section-title{font-size:11px;font-weight:850;color:#1e3a8a;text-transform:uppercase;margin-bottom:7px}.history-current-value{font-size:14px;font-weight:700;line-height:1.55}.history-entry{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px}.history-entry-title{font-weight:850;color:#1e3a8a;margin-bottom:5px}.history-entry-meta{font-size:11px;color:#64748b;margin-bottom:8px}.history-row{font-size:13px;line-height:1.5}.history-empty{padding:14px;text-align:center;color:#64748b;font-weight:700;background:#f8fafc;border-radius:9px;border:1px solid #e2e8f0}
+
+.history-section-title{margin:18px 0 9px;font-size:13px;font-weight:900;color:#1e3a8a;letter-spacing:.15px}.history-past-list{display:grid;gap:10px}.history-past-entry{background:#f8fafc;border:1px solid #dbe4ee;border-radius:12px;padding:14px 16px}.history-past-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:9px;color:#1e3a8a;font-size:13px}.history-past-head span{font-size:11px;color:#64748b;font-weight:700}.history-past-body{font-size:14px;line-height:1.65;color:#172033}.history-pending-entry{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.65}.pending-title{color:#9a3412}
+</style>
+
+<style id="responsive-mobile-tablet">
+/* Tablet */
+@media (min-width:601px) and (max-width:1024px){
+  body{padding:14px}
+  .container{max-width:100%}
+  .card{padding:14px}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:760px}
+  th,td{font-size:12px;padding:10px 7px}
+}
+/* Smartphone: la tabella diventa una lista di schede, senza scroll orizzontale */
+@media (max-width:600px){
+  body{padding:7px;padding-bottom:12px}
+  .container{width:100%}
+  .header-card{padding:14px 10px 56px}
+  .header-card h1{font-size:17px}
+  .name{font-size:12px}
+  .back-btn{position:static;width:100%;margin-top:10px;min-height:42px}
+  .card{padding:10px;border-radius:12px}
+  .toolbar{align-items:stretch;flex-direction:column;gap:8px}
+  .toolbar strong{font-size:14px}
+  .refresh{width:100%;min-height:42px}
+
+  /* MOBILE: keep the real table horizontally oriented.
+     Only .table-wrap scrolls horizontally; rows never become cards. */
+  .table-wrap{
+    width:100%;
+    overflow-x:auto!important;
+    overflow-y:visible;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-x:contain;
+  }
+  table{
+    display:table!important;
+    width:max-content!important;
+    min-width:900px!important;
+    border-collapse:collapse!important;
+  }
+  thead{display:table-header-group!important}
+  tbody{display:table-row-group!important}
+  tbody tr{
+    display:table-row!important;
+    width:auto!important;
+    background:transparent;
+    border:0;
+    border-radius:0;
+    margin:0;
+    padding:0;
+    box-shadow:none;
+  }
+  th,td{
+    display:table-cell!important;
+    width:auto!important;
+    min-width:0;
+    padding:10px 8px;
+    border-bottom:1px solid #e2e8f0;
+    text-align:center;
+    white-space:normal;
+    overflow:visible;
+    font-size:11px;
+    vertical-align:middle;
+  }
+  th{
+    font-size:9px;
+    white-space:nowrap;
+  }
+  tbody td::before{display:none!important}
+
+  /* Reasonable widths for the 8 columns. */
+  th:nth-child(1),td:nth-child(1){min-width:105px}
+  th:nth-child(2),td:nth-child(2){min-width:105px}
+  th:nth-child(3),td:nth-child(3){min-width:105px}
+  th:nth-child(4),td:nth-child(4){min-width:100px}
+  th:nth-child(5),td:nth-child(5){min-width:150px}
+  th:nth-child(6),td:nth-child(6){min-width:150px}
+  th:nth-child(7),td:nth-child(7){min-width:135px}
+  th:nth-child(8),td:nth-child(8){min-width:190px}
+
+  .history-actions{
+    width:auto;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    justify-content:center;
+    align-items:stretch;
+  }
+  .modify-btn,.cancel-btn,.view-mod-btn,.history-btn{
+    width:auto;
+    min-width:150px;
+    min-height:38px;
+    margin:0;
+  }
+  .modification-pending{
+    white-space:normal;
+    text-align:center;
+    justify-content:center;
+  }
+  .note{
+    max-width:220px;
+    margin:auto;
+    text-align:center;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+  }
+  /* MODALI SU SMARTPHONE: tutta la finestra resta utilizzabile e
+     il contenuto scorre all'interno del pannello, compresi i pulsanti. */
+  .modal{
+    padding:8px;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .modal-card{
+    width:100%;
+    max-width:100%;
+    max-height:calc(100dvh - 16px);
+    height:auto;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    border-radius:16px;
+    padding:15px;
+  }
+  .form-grid{grid-template-columns:1fr;gap:9px}
+  .field.full{grid-column:auto}
+  .field{gap:4px}
+  .field label{font-size:10px}
+  .field input,.field select,.field textarea{
+    min-height:44px;
+    padding:9px 10px;
+  }
+  .field textarea{min-height:88px}
+  .modal-actions{
+    flex-direction:column;
+    gap:8px;
+    margin-top:12px;
+    padding-bottom:2px;
+  }
+  .modal-btn{width:100%;min-height:44px}
+  .mod-view-row{grid-template-columns:1fr;gap:3px}
+}
+</style>
+<script>
+/* Etichette automatiche per la vista mobile della tabella */
+document.addEventListener("DOMContentLoaded",()=>{
+  const labels=[];
+  document.querySelectorAll("table tbody tr").forEach(row=>{
+    [...row.children].forEach((td,i)=>{if(labels[i]&&!td.hasAttribute("data-label"))td.setAttribute("data-label",labels[i]);});
+  });
+});
+</script>
+
+
+
+
+<style id="mobile-modify-modal-final">
+@media(max-width:600px){
+  #modify-modal .modal-card{
+    max-height:calc(100dvh - 16px)!important;
+  }
+  #modify-modal .modal-subtitle{
+    margin-bottom:12px;
+    line-height:1.35;
+  }
+  #modify-modal .modal-message{
+    margin-top:8px;
+  }
+  #modify-modal .permission-validation{
+    padding:10px 12px;
+  }
+}
+</style>
+
+</head>
+<body>
+<div class="container">
+  <div class="header-card">
+    <h1>LE TUE RICHIESTE</h1>
+    <div class="name" id="technician-name">Caricamento...</div>
+    <button type="button" class="back-btn" onclick="location.href='ws-form.html'">← TORNA AL MODULO</button>
+  </div>
+
+  <div id="error" class="error" style="display:none"></div>
+
+  <div class="card">
+    <div class="toolbar">
+      <strong>RICHIESTE FERIE/PERMESSI</strong>
+      <button type="button" class="refresh" id="refresh-btn">↻ AGGIORNA</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Data</th>
+            <th>Orario</th>
+            <th>Stato</th>
+            <th>Note Tecnico</th>
+            <th>Note Gestore</th>
+            <th>Richiesta del</th>
+            <th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="requests-body">
+          <tr><td colspan="8" class="empty">Caricamento richieste...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="history-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="history-title">
+  <div class="modal-card">
+    <h2 id="history-title">STORICO RICHIESTA</h2>
+    <div id="history-current"></div>
+    <div id="history-content"></div>
+    <div class="modal-actions"><button type="button" class="modal-btn modal-cancel" id="history-close">CHIUDI</button></div>
+  </div>
+</div>
+
+<div id="modify-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modify-title">
+  <div class="modal-card">
+    <h2 id="modify-title">MODIFICA RICHIESTA</h2>
+    <p class="modal-subtitle">La modifica verrà inviata al GESTORE per l'approvazione. La richiesta attuale non cambierà finché non verrà approvata.</p>
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="mod-tipo">Tipo</label>
+        <select id="mod-tipo">
+          <option value="FERIE">FERIE</option>
+          <option value="PERMESSO">PERMESSO</option>
+          <option value="PERMESSO 104">PERMESSO 104</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="mod-data-inizio">Data inizio</label>
+        <input type="date" id="mod-data-inizio">
+      </div>
+
+      <div class="field">
+        <label for="mod-data-fine">Data fine</label>
+        <input type="date" id="mod-data-fine">
+      </div>
+      <div id="permission-validation" class="permission-validation" role="alert" aria-live="polite">
+        <div class="permission-validation-title">⚠️ Permesso non valido</div>
+        <div class="permission-validation-text">
+          Il <strong>PERMESSO</strong> può essere richiesto per un solo giorno.<br>
+          Per richiedere più giorni, seleziona <strong>FERIE</strong>.
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="mod-ora-inizio">Ora inizio</label>
+        <input type="time" id="mod-ora-inizio">
+      </div>
+
+      <div class="field">
+        <label for="mod-ora-fine">Ora fine</label>
+        <input type="time" id="mod-ora-fine">
+      </div>
+
+      <div class="field full">
+        <label for="mod-note">Nota tecnico</label>
+        <textarea id="mod-note" placeholder="Eventuale nota..."></textarea>
+      </div>
+    </div>
+
+    <div id="modify-message" class="modal-message"></div>
+
+    <div class="modal-actions">
+      <button type="button" class="modal-btn modal-cancel" id="modify-close">ANNULLA</button>
+      <button type="button" class="modal-btn modal-save" id="modify-save">INVIA MODIFICA</button>
+    </div>
+  </div>
+</div>
+
+<div id="view-mod-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="view-mod-title">
+  <div class="modal-card">
+    <h2 id="view-mod-title">MODIFICA INVIATA</h2>
+    <p class="modal-subtitle">Questa è la modifica richiesta al GESTORE. La richiesta attuale rimane invariata fino all'approvazione.</p>
+    <div id="view-mod-content"></div>
+    <div class="modal-actions">
+      <button type="button" class="modal-btn modal-cancel" id="view-mod-close">CHIUDI</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL="https://uojxohvixlcxftpavieu.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_u-ka1YHQS-pTFTIfDsaXcw_3pjStYKh";
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+let currentUser=null;
+let historyByRequest={};
+let pendingModificationsByRequest={};
+let latestModificationsByRequest={};
+const $=id=>document.getElementById(id);
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
+function formatDate(v){if(!v)return "";const p=v.split("-");return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:v;}
+function formatDateTime(v){if(!v)return "";const d=new Date(v);if(Number.isNaN(d.getTime()))return "";return d.toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});}
+function statusBadge(stato){const s=stato||"IN_ATTESA";if(s==="ACCETTATA")return '<span class="status accepted">ACCETTATA</span>';if(s==="RIFIUTATA")return '<span class="status rejected">RIFIUTATA</span>';if(s==="ANNULLATA")return '<span class="status cancelled">ANNULLATA</span>';return '<span class="status pending">IN ATTESA</span>';}
+function typeLabel(tipo){return tipo==="PERMESSO 104"?"PERMESSO 104":(tipo||"");}
+function dateLabel(r){if(r.data_inizio===r.data_fine)return formatDate(r.data_inizio);return `${formatDate(r.data_inizio)} – ${formatDate(r.data_fine)}`;}
+function timeLabel(r){if(r.ora_inizio&&r.ora_fine)return `${String(r.ora_inizio).slice(0,5)} – ${String(r.ora_fine).slice(0,5)}`;return '<span class="small">—</span>';}
+function showSuccess(msg){$("error").className="success";$("error").textContent=msg||"Operazione completata";$("error").style.display="block";}
+function showError(msg){$("error").textContent=msg||"Errore";$("error").style.display="block";}
+function clearError(){$("error").style.display="none";$("error").textContent="";}
+async function loadProfile(){
+  const {data,error}=await supabaseClient.auth.getSession();
+  if(error)throw error;if(!data.session){location.replace("index.html");return false;}
+  currentUser=data.session.user;
+  const {data:profile,error:pError}=await supabaseClient.from("profiles").select("id,username,nome,is_tecnico,attivo").eq("id",currentUser.id).single();
+  if(pError)throw pError;
+  if(!profile||profile.attivo!==true||profile.is_tecnico!==true){showError("ACCESSO NEGATO: questa pagina è riservata agli utenti con permesso TECNICO.");return false;}
+  $("technician-name").textContent=profile.nome||profile.username||"";
+  return true;
+}
+async function cancelRequest(id){
+  if(!id)return;
+  const conferma=confirm("Vuoi davvero cancellare questa richiesta?\n\nLa richiesta verrà impostata come ANNULLATA e resterà nello storico.");
+  if(!conferma)return;
+
+  clearError();
+  try{
+    const {error}=await supabaseClient
+      .from("richieste_assenze")
+      .update({stato:"ANNULLATA",updated_at:new Date().toISOString()})
+      .eq("id",id)
+      .eq("tecnico_id",currentUser.id)
+      .eq("stato","IN_ATTESA");
+
+    if(error)throw error;
+    await loadRequests();
+  }catch(e){
+    showError(e.message||"Impossibile cancellare la richiesta.");
+  }
+}
+
+async function loadRequests(){
+  clearError();
+  $("requests-body").innerHTML='<tr><td colspan="8" class="empty">Caricamento richieste...</td></tr>';
+  try{
+    const {data,error}=await supabaseClient.from("richieste_assenze")
+      .select("id,tipo,data_inizio,data_fine,ora_inizio,ora_fine,stato,note_tecnico,note_gestore,created_at")
+      .eq("tecnico_id",currentUser.id).order("created_at",{ascending:false});
+    if(error)throw error;
+
+    window.__wsRequests=data||[];
+    historyByRequest={};
+    pendingModificationsByRequest={};
+    latestModificationsByRequest={};
+
+    if(data&&data.length){
+      const ids=data.map(r=>r.id);
+      const {data:mods,error:modsError}=await supabaseClient
+        .from("richieste_assenze_storico")
+        .select("id,richiesta_id,modificato_da,modificato_da_tipo,stato,vecchio_tipo,vecchia_data_inizio,vecchia_data_fine,vecchia_ora_inizio,vecchia_ora_fine,vecchia_note_tecnico,nuovo_tipo,nuova_data_inizio,nuova_data_fine,nuova_ora_inizio,nuova_ora_fine,nuova_note_tecnico,gestore_id,nota_gestore,created_at,updated_at")
+        .in("richiesta_id",ids).order("created_at",{ascending:false});
+      if(modsError)throw modsError;
+      (mods||[]).forEach(m=>{
+        if(!historyByRequest[m.richiesta_id])historyByRequest[m.richiesta_id]=[];
+        historyByRequest[m.richiesta_id].push(m);
+        // Solo le modifiche del TECNICO possono essere in attesa di approvazione.
+        if(m.modificato_da_tipo==="TECNICO"&&!latestModificationsByRequest[m.richiesta_id])latestModificationsByRequest[m.richiesta_id]=m;
+      });
+      Object.keys(latestModificationsByRequest).forEach(id=>{
+        const m=latestModificationsByRequest[id];
+        if(m.stato==="IN_ATTESA")pendingModificationsByRequest[id]=m;
+      });
+    }
+
+    if(!data||!data.length){
+      $("requests-body").innerHTML='<tr><td colspan="8" class="empty">Non hai ancora inviato nessuna richiesta.</td></tr>';
+      return;
+    }
+
+    $("requests-body").innerHTML=data.map(r=>{
+      const hasPending=!!pendingModificationsByRequest[r.id];
+      const stato=statusBadge(r.stato)+(hasPending?'<br><span class="modification-pending">✎ MODIFICA IN ATTESA</span>':'');
+      const scaduta=!!r.data_fine&&r.data_fine<new Date().toISOString().slice(0,10);
+      const historyButton=(historyByRequest[r.id]&&historyByRequest[r.id].length)
+        ? `<button type="button" class="history-btn" data-id="${esc(r.id)}">VISUALIZZA STORICO</button>` : "";
+      const actions=
+        ((!scaduta&&(r.stato==="IN_ATTESA"||r.stato==="ACCETTATA"))
+          ? `<button type="button" class="modify-btn" onclick="openModify('${esc(r.id)}')">MODIFICA</button>` : "")+
+        ((hasPending&&r.stato!=="ANNULLATA")
+          ? `<button type="button" class="view-mod-btn" onclick="openViewModification('${esc(r.id)}')">VEDI MODIFICA</button>` : "")+
+        (r.stato==="IN_ATTESA"
+          ? `<button type="button" class="cancel-btn" onclick="cancelRequest('${esc(r.id)}')">CANCELLA RICHIESTA</button>` : "")+
+        ((r.stato!=="IN_ATTESA"&&r.stato!=="ACCETTATA"&&!hasPending&&!historyButton)?"—":"");
+      return `<tr>
+        <td>${esc(typeLabel(r.tipo))}</td><td>${esc(dateLabel(r))}</td><td>${timeLabel(r)}</td><td>${stato}</td>
+        <td><div class="note">${esc(r.note_tecnico||"—")}</div></td><td><div class="note">${esc(r.note_gestore||"—")}</div></td>
+        <td>${esc(formatDateTime(r.created_at))}</td><td><div class="history-actions">${actions}${historyButton}</div></td>
+      </tr>`;
+    }).join("");
+    document.querySelectorAll(".history-btn").forEach(btn=>btn.addEventListener("click",()=>openHistory(btn.dataset.id)));
+  }catch(e){
+    $("requests-body").innerHTML='<tr><td colspan="8" class="empty">Impossibile caricare le richieste.</td></tr>';
+    showError(e.message||"Errore nel caricamento delle richieste.");
+  }
+}
+
+function historyDateLabel(a,b){
+  if(!a)return "—";
+  return a===b?formatDate(a):`dal ${formatDate(a)} al ${formatDate(b)}`;
+}
+function historyTimeLabel(a,b,tipo){
+  if(a&&b)return `${String(a).slice(0,5)} – ${String(b).slice(0,5)}`;
+  return tipo==="FERIE"?"—":"Giornata intera";
+}
+function historyStatusLabel(stato){
+  if(stato==="APPROVATA")return "APPROVATA";
+  if(stato==="RIFIUTATA")return "RIFIUTATA";
+  return "IN ATTESA";
+}
+function openHistory(id){
+  const r=window.__wsRequests?.find(x=>x.id===id);
+  if(!r)return;
+  const rows=historyByRequest[id]||[];
+
+  // Le modifiche APPROVATE rappresentano le versioni realmente passate della richiesta.
+  // Le ordiniamo dalla più vecchia alla più recente per ricostruire lo storico.
+  const approvedRows=rows
+    .filter(s=>s.stato==="APPROVATA")
+    .slice()
+    .sort((a,b)=>String(a.created_at||"").localeCompare(String(b.created_at||"")));
+
+  const currentHtml=
+    '<div class="history-current"><div class="history-current-title">RICHIESTA ATTUALE</div>'+ 
+    '<div class="history-current-value"><div><strong>Tipo:</strong> '+esc(typeLabel(r.tipo))+'</div>'+ 
+    '<div><strong>Data:</strong> '+esc(historyDateLabel(r.data_inizio,r.data_fine))+'</div>'+ 
+    '<div><strong>Orario:</strong> '+esc(historyTimeLabel(r.ora_inizio,r.ora_fine,r.tipo))+'</div>'+ 
+    '<div><strong>Stato:</strong> '+statusBadge(r.stato)+'</div></div></div>';
+  $("history-current").innerHTML=currentHtml;
+
+  // Mostriamo solo le versioni precedenti realmente applicate.
+  // Partiamo dalla prima versione e aggiungiamo ogni stato precedente una sola volta.
+  const previousVersions=[];
+  approvedRows.forEach(s=>{
+    const version={
+      tipo:s.vecchio_tipo,
+      data_inizio:s.vecchia_data_inizio,
+      data_fine:s.vecchia_data_fine,
+      ora_inizio:s.vecchia_ora_inizio,
+      ora_fine:s.vecchia_ora_fine,
+      note_tecnico:s.vecchia_note_tecnico,
+      source:s
+    };
+    const key=[version.tipo,version.data_inizio,version.data_fine,version.ora_inizio||"",version.ora_fine||"",version.note_tecnico||""].join("|");
+    if(!previousVersions.some(v=>v.key===key)) previousVersions.push({...version,key});
+  });
+
+  let html='';
+  if(previousVersions.length){
+    html+='<div class="history-section-title">RICHIESTE PREGRESSE</div>';
+    html+='<div class="history-past-list">';
+    previousVersions.forEach((v,i)=>{
+      const s=v.source;
+      const actor=s.modificato_da_tipo==="GESTORE"?"GESTORE":"TECNICO";
+      const when=s.created_at?formatDateTime(s.created_at):"—";
+      html+='<div class="history-past-entry">'+
+        '<div class="history-past-head"><strong>'+esc(actor)+'</strong><span>'+esc(when)+'</span></div>'+
+        '<div class="history-past-body">'+
+        '<div><strong>Tipo:</strong> '+esc(typeLabel(v.tipo))+'</div>'+
+        '<div><strong>Data:</strong> '+esc(historyDateLabel(v.data_inizio,v.data_fine))+'</div>'+
+        '<div><strong>Orario:</strong> '+esc(historyTimeLabel(v.ora_inizio,v.ora_fine,v.tipo))+'</div>'+ 
+        (v.note_tecnico?'<div><strong>Nota tecnico:</strong> '+esc(v.note_tecnico)+'</div>':'')+
+        '</div></div>';
+    });
+    html+='</div>';
+  }
+
+  // Le proposte non ancora applicate restano visibili separatamente, senza entrare nelle richieste pregresse.
+  const pending=rows.find(s=>s.stato==="IN_ATTESA");
+  if(pending){
+    html+='<div class="history-section-title pending-title">MODIFICA IN ATTESA</div>';
+    html+='<div class="history-pending-entry">'+
+      '<div><strong>Tipo:</strong> '+esc(typeLabel(pending.nuovo_tipo))+'</div>'+
+      '<div><strong>Data:</strong> '+esc(historyDateLabel(pending.nuova_data_inizio,pending.nuova_data_fine))+'</div>'+ 
+      '<div><strong>Orario:</strong> '+esc(historyTimeLabel(pending.nuova_ora_inizio,pending.nuova_ora_fine,pending.nuovo_tipo))+'</div>'+ 
+      '</div>';
+  }
+
+  if(!html) html='<div class="history-empty">Nessuna richiesta precedente registrata.</div>';
+  $("history-content").innerHTML=html;
+  $("history-modal").classList.remove("hidden");
+}
+function closeHistory(){$("history-modal").classList.add("hidden");}
+
+function viewDate(v1,v2){
+  if(!v1)return "—";
+  return v1===v2?formatDate(v1):`dal ${formatDate(v1)} al ${formatDate(v2)}`;
+}
+function viewTime(v1,v2,tipo){
+  if(v1&&v2)return `${String(v1).slice(0,5)} – ${String(v2).slice(0,5)}`;
+  return tipo==="FERIE"?"—":"Giornata intera";
+}
+function openViewModification(id){
+  const m=latestModificationsByRequest[id];
+  if(!m)return;
+
+  const statoLabel=m.stato==="IN_ATTESA"?"IN ATTESA":(m.stato==="APPROVATA"?"APPROVATA":(m.stato==="RIFIUTATA"?"RIFIUTATA":m.stato));
+
+  $("view-mod-content").innerHTML=
+    '<div class="mod-view-status">'+
+      '<div class="detail-label">STATO DELLA MODIFICA</div>'+
+      '<div class="detail-value">'+esc(statoLabel)+'</div>'+
+    '</div>'+
+
+    '<div class="mod-view-section">'+
+      '<div class="mod-view-section-title">RICHIESTA ATTUALE</div>'+
+      '<div class="detail mod-view-current">'+
+        '<div class="mod-view-row"><strong>Tipo</strong><span>'+esc(typeLabel(m.vecchio_tipo))+'</span></div>'+
+        '<div class="mod-view-row"><strong>Data</strong><span>'+esc(viewDate(m.vecchia_data_inizio,m.vecchia_data_fine))+'</span></div>'+
+        '<div class="mod-view-row"><strong>Orario</strong><span>'+esc(viewTime(m.vecchia_ora_inizio,m.vecchia_ora_fine,m.vecchio_tipo))+'</span></div>'+
+      '</div>'+
+    '</div>'+
+
+    '<div class="mod-view-section">'+
+      '<div class="mod-view-section-title">MODIFICA RICHIESTA</div>'+
+      '<div class="detail mod-view-request">'+
+        '<div class="mod-view-row"><strong>Tipo</strong><span>'+esc(typeLabel(m.nuovo_tipo))+'</span></div>'+
+        '<div class="mod-view-row"><strong>Data</strong><span>'+esc(viewDate(m.nuova_data_inizio,m.nuova_data_fine))+'</span></div>'+
+        '<div class="mod-view-row"><strong>Orario</strong><span>'+esc(viewTime(m.nuova_ora_inizio,m.nuova_ora_fine,m.nuovo_tipo))+'</span></div>'+
+        (m.nuova_note_tecnico?
+          '<div class="mod-view-row"><strong>Nota</strong><span>'+esc(m.nuova_note_tecnico)+'</span></div>':'')+
+      '</div>'+
+    '</div>';
+
+  $("view-mod-modal").classList.remove("hidden");
+}
+function closeViewModification(){$("view-mod-modal").classList.add("hidden");}
+
+function showPermissionValidation(show){
+  const box=$("permission-validation");
+  const save=$("modify-save");
+  if(box)box.classList.toggle("show",!!show);
+  if(save)save.disabled=!!show;
+}
+function checkPermissionValidation(){
+  const tipo=$("mod-tipo").value;
+  const dataInizio=$("mod-data-inizio").value;
+  const dataFine=$("mod-data-fine").value||dataInizio;
+  const invalid=tipo==="PERMESSO" && dataInizio && dataFine && dataFine!==dataInizio;
+  showPermissionValidation(invalid);
+}
+
+let selectedModifyRequest=null;
+
+function openModify(id){
+  clearError();
+  selectedModifyRequest=id;
+  const rowData = window.__wsRequests?.find(r=>r.id===id);
+  if(rowData && rowData.data_fine && rowData.data_fine < new Date().toISOString().slice(0,10)){
+    showError("Questa richiesta è scaduta e non può essere modificata.");
+    return;
+  }
+  if(rowData && rowData.stato==="ANNULLATA"){
+    showError("Questa richiesta è stata annullata e non può essere modificata. Per una nuova esigenza, invia una nuova richiesta.");
+    return;
+  }
+  if(!rowData){
+    // Fallback: reload data if the local cache is unavailable.
+    showError("Impossibile aprire la richiesta. Aggiorna la pagina e riprova.");
+    return;
+  }
+
+  $("mod-tipo").value=rowData.tipo||"PERMESSO";
+  $("mod-data-inizio").value=rowData.data_inizio||"";
+  $("mod-data-fine").value=rowData.data_fine||rowData.data_inizio||"";
+  $("mod-ora-inizio").value=rowData.ora_inizio?String(rowData.ora_inizio).slice(0,5):"";
+  $("mod-ora-fine").value=rowData.ora_fine?String(rowData.ora_fine).slice(0,5):"";
+  $("mod-note").value=rowData.note_tecnico||"";
+  $("modify-message").style.display="none";
+  showPermissionValidation(false);
+  checkPermissionValidation();
+  $("modify-message").textContent="";
+  $("modify-modal").classList.remove("hidden");
+}
+
+function closeModify(){
+  selectedModifyRequest=null;
+  $("modify-modal").classList.add("hidden");
+  $("modify-message").style.display="none";
+  $("modify-message").textContent="";
+  showPermissionValidation(false);
+}
+
+async function saveModification(){
+  if(!selectedModifyRequest)return;
+
+  const tipo=$("mod-tipo").value;
+  const data_inizio=$("mod-data-inizio").value;
+  const data_fine=$("mod-data-fine").value||data_inizio;
+  const ora_inizio=$("mod-ora-inizio").value||null;
+  const ora_fine=$("mod-ora-fine").value||null;
+  const note=$("mod-note").value.trim()||null;
+
+  if(!tipo||!data_inizio){
+    $("modify-message").textContent="Inserisci il tipo e la data di inizio.";
+    $("modify-message").style.display="block";
+    return;
+  }
+  if(data_fine<data_inizio){
+    $("modify-message").textContent="La data finale non può essere precedente alla data iniziale.";
+    $("modify-message").style.display="block";
+    return;
+  }
+  if(tipo==="PERMESSO" && data_fine!==data_inizio){
+    showPermissionValidation(true);
+    return;
+  }
+  showPermissionValidation(false);
+  if((ora_inizio&&!ora_fine)||(!ora_inizio&&ora_fine)){
+    $("modify-message").textContent="Inserisci entrambe le ore oppure lascia entrambe vuote per una giornata intera.";
+    $("modify-message").style.display="block";
+    return;
+  }
+  if(ora_inizio&&ora_fine&&ora_fine<=ora_inizio){
+    $("modify-message").textContent="L'ora finale deve essere successiva all'ora iniziale.";
+    $("modify-message").style.display="block";
+    return;
+  }
+
+  const current=window.__wsRequests?.find(r=>r.id===selectedModifyRequest);
+  if(!current){
+    $("modify-message").textContent="Richiesta non trovata. Aggiorna la pagina.";
+    $("modify-message").style.display="block";
+    return;
+  }
+
+  if(
+    current.tipo===tipo &&
+    current.data_inizio===data_inizio &&
+    current.data_fine===data_fine &&
+    String(current.ora_inizio||"").slice(0,5)===String(ora_inizio||"") &&
+    String(current.ora_fine||"").slice(0,5)===String(ora_fine||"") &&
+    (current.note_tecnico||"")===note
+  ){
+    $("modify-message").textContent="Non hai apportato modifiche.";
+    $("modify-message").style.display="block";
+    return;
+  }
+
+  const saveBtn=$("modify-save");
+  saveBtn.disabled=true;
+  saveBtn.textContent="SALVATAGGIO...";
+
+  try{
+    // Se la richiesta è ancora IN ATTESA, non è ancora stata approvata/rifiutata.
+    // Il TECNICO può quindi correggerla direttamente: non serve una modifica
+    // separata nello storico e la richiesta resta IN ATTESA.
+    if(current.stato==="IN_ATTESA"){
+      const {error}=await supabaseClient
+        .from("richieste_assenze")
+        .update({
+          tipo:tipo,
+          data_inizio:data_inizio,
+          data_fine:data_fine,
+          ora_inizio:ora_inizio,
+          ora_fine:ora_fine,
+          note_tecnico:note,
+          updated_at:new Date().toISOString()
+        })
+        .eq("id",selectedModifyRequest)
+        .eq("tecnico_id",currentUser.id)
+        .eq("stato","IN_ATTESA");
+
+      if(error)throw error;
+
+      // La modifica diretta di una richiesta IN ATTESA viene comunque registrata nello storico.
+      const {error:historyError}=await supabaseClient
+        .from("richieste_assenze_storico")
+        .insert({
+          richiesta_id:selectedModifyRequest,
+          modificato_da:currentUser.id,
+          modificato_da_tipo:"TECNICO",
+          stato:"APPROVATA",
+          vecchio_tipo:current.tipo,
+          vecchia_data_inizio:current.data_inizio,
+          vecchia_data_fine:current.data_fine,
+          vecchia_ora_inizio:current.ora_inizio||null,
+          vecchia_ora_fine:current.ora_fine||null,
+          vecchia_note_tecnico:current.note_tecnico||null,
+          nuovo_tipo:tipo,
+          nuova_data_inizio:data_inizio,
+          nuova_data_fine:data_fine,
+          nuova_ora_inizio:ora_inizio,
+          nuova_ora_fine:ora_fine,
+          nuova_note_tecnico:note
+        });
+      if(historyError)throw historyError;
+
+      closeModify();
+      showSuccess("✓ Richiesta modificata correttamente. Rimane IN ATTESA di approvazione.");
+      await loadRequests();
+      return;
+    }
+
+    // Se la richiesta è già ACCETTATA, la modifica segue invece il normale
+    // flusso di approvazione del GESTORE.
+    const {data,error}=await supabaseClient
+      .from("richieste_assenze_storico")
+      .insert({
+        richiesta_id:selectedModifyRequest,
+        modificato_da:currentUser.id,
+        modificato_da_tipo:"TECNICO",
+        stato:"IN_ATTESA",
+        vecchio_tipo:current.tipo,
+        vecchia_data_inizio:current.data_inizio,
+        vecchia_data_fine:current.data_fine,
+        vecchia_ora_inizio:current.ora_inizio||null,
+        vecchia_ora_fine:current.ora_fine||null,
+        vecchia_note_tecnico:current.note_tecnico||null,
+        nuovo_tipo:tipo,
+        nuova_data_inizio:data_inizio,
+        nuova_data_fine:data_fine,
+        nuova_ora_inizio:ora_inizio,
+        nuova_ora_fine:ora_fine,
+        nuova_note_tecnico:note
+      })
+      .select("id")
+      .single();
+
+    if(error)throw error;
+
+    closeModify();
+    showSuccess("✓ Modifica inviata al GESTORE per l'approvazione.");
+    await loadRequests();
+  }catch(e){
+    $("modify-message").textContent=e.message||"Impossibile salvare la modifica.";
+    $("modify-message").style.display="block";
+  }finally{
+    saveBtn.disabled=false;
+    saveBtn.textContent="INVIA MODIFICA";
+  }
+}
+
+$("mod-tipo").addEventListener("change",checkPermissionValidation);
+$("mod-data-inizio").addEventListener("change",checkPermissionValidation);
+$("mod-data-fine").addEventListener("change",checkPermissionValidation);
+$("refresh-btn").addEventListener("click",loadRequests);
+$("modify-close").addEventListener("click",closeModify);
+$("modify-save").addEventListener("click",saveModification);
+$("view-mod-close").addEventListener("click",closeViewModification);
+$("view-mod-modal").addEventListener("click",e=>{if(e.target===$("view-mod-modal"))closeViewModification();});
+$("history-close").addEventListener("click",closeHistory);
+$("history-modal").addEventListener("click",e=>{if(e.target===$("history-modal"))closeHistory();});
+$("modify-modal").addEventListener("click",e=>{if(e.target===$("modify-modal"))closeModify();});
+(async function(){try{if(await loadProfile())await loadRequests();}catch(e){showError(e.message||"Errore di accesso.");}})();
+</script>
+</body>
+</html>
