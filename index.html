@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#1e3a8a">
+<title>WS Form - Accesso</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--primary:#1e3a8a;--bg:#f1f5f9;--card:#fff;--border:#cbd5e1;--text:#0f172a;--red:#b91c1c}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);min-height:100vh;padding:14px;display:flex;align-items:center;justify-content:center}
+.container{width:100%;max-width:430px}.card{background:var(--card);padding:22px 18px 18px;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.05);border-top:5px solid var(--primary);text-align:center}
+.logo{width:58px;height:58px;margin:0 auto 12px;border-radius:14px;background:#eff6ff;color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:27px;font-weight:800}
+h1{color:var(--primary);font-size:20px;font-weight:800;letter-spacing:.5px;margin-bottom:5px}.sub{color:#64748b;font-size:12px;font-weight:600;margin-bottom:20px}
+.group{text-align:left;margin-bottom:12px}label{display:block;font-size:11px;font-weight:700;color:#64748b;margin-bottom:4px;text-transform:uppercase}
+input{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;background:#f8fafc;outline:none}input:focus{background:#fff;border-color:var(--primary);box-shadow:0 0 0 3px rgba(30,58,138,.08)}
+.pass{position:relative}.pass input{padding-right:76px}.show{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--primary);font-size:11px;font-weight:700;padding:7px;cursor:pointer}
+button.login{width:100%;margin-top:6px;padding:12px;border:0;border-radius:8px;background:var(--primary);color:#fff;font-size:14px;font-weight:800;cursor:pointer}button.login:disabled{opacity:.65;cursor:wait}
+.forgot{display:block;margin-top:14px;color:var(--primary);font-size:12px;font-weight:700;text-decoration:none}.error{display:none;margin-top:12px;padding:9px 11px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;color:var(--red);font-size:12px;font-weight:700;text-align:left}.loading{display:none;margin-top:12px;color:#64748b;font-size:11px;font-weight:700}.footer{text-align:center;margin-top:12px;color:#94a3b8;font-size:10px;font-weight:600}
+</style>
+<style id="responsive-mobile-tablet">
+@media (max-width: 600px){
+  body{padding:10px;min-height:100dvh}
+  .container{max-width:100%}
+  .card{padding:20px 15px 16px}
+  .logo{width:54px;height:54px;font-size:25px}
+  h1{font-size:19px}
+  input{font-size:16px;min-height:44px}
+  button.login{min-height:46px;font-size:14px}
+  .show{font-size:11px;padding:9px}
+}
+@media (min-width:601px) and (max-width:1024px){
+  body{padding:24px}
+  .container{max-width:500px}
+  .card{padding:28px 24px 22px}
+}
+</style>
+
+</head>
+<body><div class="container"><div class="card"><div class="logo">WS</div><h1>WS FORM</h1><div class="sub">ACCESSO RISERVATO</div>
+<form id="loginForm"><div class="group"><label for="username">Username</label><input id="username" type="text" autocomplete="username" autocapitalize="characters" spellcheck="false" placeholder="Inserisci username" required></div>
+<div class="group"><label for="password">Password</label><div class="pass"><input id="password" type="password" autocomplete="current-password" placeholder="Inserisci password" required><button type="button" class="show" id="show">MOSTRA</button></div></div>
+<button class="login" id="login" type="submit">ACCEDI</button><a class="forgot" href="#" id="forgot">Password dimenticata?</a><div class="error" id="error"></div><div class="loading" id="loading">Accesso in corso...</div></form></div><div class="footer">WS Form</div></div>
+<script>
+const SUPABASE_URL="https://uojxohvixlcxftpavieu.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_u-ka1YHQS-pTFTIfDsaXcw_3pjStYKh";
+const AUTH_LOGIN_URL=SUPABASE_URL+"/functions/v1/auth-login";
+let client=null;if(window.supabase&&!SUPABASE_URL.includes("INSERISCI_QUI")&&!SUPABASE_PUBLISHABLE_KEY.includes("INSERISCI_QUI")){client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY)}
+const form=document.getElementById("loginForm"),u=document.getElementById("username"),p=document.getElementById("password"),btn=document.getElementById("login"),err=document.getElementById("error"),load=document.getElementById("loading");
+document.getElementById("show").onclick=()=>{p.type=p.type==="password"?"text":"password";document.getElementById("show").textContent=p.type==="password"?"MOSTRA":"NASCONDI"};
+function error(t){err.textContent=t;err.style.display="block"}function clear(){err.style.display="none";err.textContent=""}
+form.onsubmit=async e=>{e.preventDefault();clear();if(!client){error("Configurazione Supabase non ancora inserita.");return}btn.disabled=true;load.style.display="block";try{const r=await fetch(AUTH_LOGIN_URL,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_PUBLISHABLE_KEY},body:JSON.stringify({username:u.value.trim(),password:p.value})});const x=await r.json();if(!r.ok||!x.success||!x.session){error(x.error||"Username o password non corretti.");return}const s=await client.auth.setSession({access_token:x.session.access_token,refresh_token:x.session.refresh_token});if(s.error){error("Impossibile creare la sessione.");return}const profile = x.user;
+if(!profile || profile.id !== x.user.id || profile.attivo !== true){error("Profilo utente non valido o disattivato.");return}
+sessionStorage.setItem("wsform_profile",JSON.stringify(profile));
+
+/* NAVIGAZIONE PER PERMESSI
+   SOLO ADMIN                    -> admin.html
+   SOLO TECNICO                  -> ws-form.html
+   SOLO COLLABORATORE            -> ws-form.html
+   ADMIN + TECNICO/COLLABORATORE -> ws-form.html
+*/
+const isAdmin = profile.is_admin === true;
+const isTecnico = profile.is_tecnico === true;
+const isCollaboratore = profile.is_collaboratore === true;
+
+if (isAdmin && !isTecnico && !isCollaboratore) {
+    // Utente esclusivamente ADMIN
+    window.location.replace("admin.html");
+    return;
+}
+
+if (isTecnico || isCollaboratore) {
+    // Utente TECNICO, COLLABORATORE oppure ADMIN + TECNICO/COLLABORATORE
+    window.location.replace("ws-form.html");
+    return;
+}
+
+error("Il profilo non ha alcun permesso attivo.");}catch(e){console.error(e);error("Errore di collegamento al server.")}finally{btn.disabled=false;load.style.display="none"}};
+document.getElementById("forgot").onclick=e=>{e.preventDefault();window.location.href="password-dimenticata.html"};
+</script></body></html>
